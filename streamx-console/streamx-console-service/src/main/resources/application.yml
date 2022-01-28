@@ -37,10 +37,10 @@ spring:
       datasource:
         # 数据源-1，名称为 primary
         primary:
-          username: root
-          password: 123456
+          username: openfaasdb_user
+          password: 5apj5R7s$y75S8z3
           driver-class-name: com.mysql.cj.jdbc.Driver
-          url: jdbc:mysql://localhost:3306/streamx?useUnicode=true&characterEncoding=UTF-8&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8
+          url: jdbc:mysql://data-db01.aibee.cn:3306/streamx?useUnicode=true&characterEncoding=UTF-8&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8
   aop.proxy-target-class: true
   messages.encoding: utf-8
   jackson:
@@ -72,8 +72,8 @@ streamx:
   hadoop-user-name: hdfs
   # 本地的工作空间,用于存放项目源码,构建的目录等.
   workspace:
-    local: /opt/streamx_workspace
-    remote: hdfs:///streamx   # support hdfs:///streamx/ 、 /streamx 、hdfs://host:ip/streamx/
+    local: /Users/aibee/tmp/streamx_workspace
+    remote: hdfs:///tmp/cjzhang/steamx   # support hdfs:///streamx/ 、 /streamx 、hdfs://host:ip/streamx/
 
   # remote docker register namespace for streamx
   docker:

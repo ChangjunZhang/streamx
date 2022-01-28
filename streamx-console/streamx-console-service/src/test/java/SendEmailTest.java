@@ -72,12 +72,12 @@ public class SendEmailTest {
             throw new ExceptionInInitializerError("email.html not found!");
         }
         senderEmail = new SenderEmail();
-        senderEmail.setFrom("****@domain.com");
-        senderEmail.setUserName("******");
-        senderEmail.setPassword("******");
-        senderEmail.setSmtpPort(465);
-        senderEmail.setSsl(true);
-        senderEmail.setSmtpHost("smtp.exmail.qq.com");
+        senderEmail.setFrom("zcjhello@163.com");
+        senderEmail.setUserName("zcjhello");
+        senderEmail.setPassword("YJBFMADSTJJVQOGY");
+        senderEmail.setSmtpPort(25);
+        senderEmail.setSsl(false);
+        senderEmail.setSmtpHost("smtp.163.com");
     }
 
     @Test
@@ -86,7 +86,7 @@ public class SendEmailTest {
         application.setStartTime(new Date());
         application.setJobName("Test My Job");
         application.setAppId("1234567890");
-        application.setAlertEmail("******");
+        application.setAlertEmail("cjzhang@aibee.com");
 
         application.setRestartCount(5);
         application.setRestartSize(100);
@@ -153,7 +153,7 @@ public class SendEmailTest {
         htmlEmail.setHostName(this.senderEmail.getSmtpHost());
         htmlEmail.setAuthentication(this.senderEmail.getUserName(), this.senderEmail.getPassword());
         htmlEmail.setFrom(this.senderEmail.getFrom());
-
+        htmlEmail.setAuthentication(this.senderEmail.getUserName(),this.senderEmail.getPassword());
         if (this.senderEmail.isSsl()) {
             htmlEmail.setSSLOnConnect(true);
             htmlEmail.setSslSmtpPort(this.senderEmail.getSmtpPort().toString());

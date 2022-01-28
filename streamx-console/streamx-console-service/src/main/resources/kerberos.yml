@@ -1,10 +1,10 @@
 security:
   kerberos:
     login:
-      enable: false
-      principal:
+      enable: true
+      principal: bigdata@AIBEE.CN
       krb5:
-      keytab:
+      keytab: /tmp/bigdata.keytab
 java:
   security:
     krb5:

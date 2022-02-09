@@ -61,6 +61,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.Arrays;
 
 /**
  * @author benjobs
@@ -134,8 +135,9 @@ public class AlertServiceImpl implements AlertService {
 
             String subject = String.format("StreamX Alert: %s, checkPoint is Failed", application.getJobName());
             String[] emails = application.getAlertEmail().split(",");
+            String[] fsWebhooks = application.getFsWebhook().split(",");
             sendEmail(mail, subject, emails);
-            sendFeishuMsg(application,emails);
+            sendFsMsg(application, fsWebhooks);
         }
     }
 
@@ -202,27 +204,25 @@ public class AlertServiceImpl implements AlertService {
         return template;
     }
 
-    private void  sendFeishuMsg(Application application, String... mails){//TODO 待完善
-        String errorMsg = "appId:"+application.getAppId()+",appName:"+application.getJobName()+" Failed";
-        Map<String,Object> header  = new HashMap<>();
-        header.put("Content-Type","application/json");
+    private void sendFsMsg(Application application, String... fsWebhooks){
+        String errorMsg = "appId:" + application.getAppId() + ",appName:" + application.getJobName() + " Failed";
         JsonMapper jsonMapper = JsonMapper.builder().build();
         ObjectNode body = jsonMapper.createObjectNode();
-        body.put("msg_type","text");
+        body.put("msg_type", "text");
         ObjectNode content = jsonMapper.createObjectNode();
-        content.put("text",errorMsg);
-        body.set("content",content);
-        String feishuWebHook="https://open.feishu.cn/open-apis/bot/v2/hook/5c857264-e5b6-44ac-8845-0fcaadd4a529";
-        String result = doPost(feishuWebHook, body);
-        System.out.println(result);
-
+        content.put("text", errorMsg);
+        body.set("content", content);
+        for (String fsWebHook : fsWebhooks) {
+            String result = doPost(fsWebHook, body);
+            System.out.println(result);
+        }
     }
 
     /**
      * 封装Http请求
-     * @param url
-     * @param json
-     * @return
+     * @param url url
+     * @param json json
+     * @return 请求返回结果
      */
     private String doPost(String url, JsonNode json) {
         CloseableHttpClient httpClient = HttpClientBuilder.create().build();
@@ -240,8 +240,7 @@ public class AlertServiceImpl implements AlertService {
             HttpResponse response = httpClient.execute(httpPost);
             if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
                 //返回json格式
-                String res = EntityUtils.toString(response.getEntity());
-                return res;
+                return EntityUtils.toString(response.getEntity());
             }
             return String.valueOf(response.getStatusLine().getStatusCode());
         } catch (IOException e) {

@@ -145,6 +145,11 @@ public class Application implements Serializable {
      */
     private String alertEmail;
 
+    /**
+     * 失败告警飞书WebHook地址
+     */
+    private String fsWebhook;
+
     private String args;
     /**
      * 应用程序模块

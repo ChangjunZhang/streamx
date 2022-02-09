@@ -1043,7 +1043,7 @@
       <!--告警方式-->
       <template>
         <a-form-item
-          v-if="1===2"
+          v-if="1===1"
           label="Fault Alert Type"
           :label-col="{lg: {span: 5}, sm: {span: 7}}"
           :wrapper-col="{lg: {span: 16}, sm: {span: 17} }">
@@ -1061,6 +1061,7 @@
               <svg-icon role="img" v-if="o.value === 2" name="sms"/>
               <svg-icon role="img" v-if="o.value === 3" name="dingding"/>
               <svg-icon role="img" v-if="o.value === 4" name="wechat"/>
+              <svg-icon role="img" v-if="o.value === 5" name="feishu"/>
               {{ o.name }}
             </a-select-option>
           </a-select>
@@ -1079,6 +1080,18 @@
           </a-input>
         </a-form-item>
 
+        <a-form-item
+          v-if="alertType.indexOf(5)>-1"
+          label="Feishu WebHook"
+          :label-col="{lg: {span: 5}, sm: {span: 7}}"
+          :wrapper-col="{lg: {span: 16}, sm: {span: 17} }">
+          <a-input
+            type="text"
+            placeholder="Please enter webhook,separate multiple webhooks with comma(,)"
+            allowClear
+            v-decorator="[ 'fsWebhook' , {rules: [{ required: true, message: 'FeiShu WebHook is required' }]}]">
+          </a-input>
+        </a-form-item>
         <a-form-item
           v-if="alertType.indexOf(2)>-1"
           label="SMS"
@@ -1535,6 +1548,7 @@ export default {
         {name: 'SMS', value: 2, disabled: true},
         {name: 'Ding Ding Task', value: 3, disabled: true},
         {name: 'Wechat', value: 4, disabled: true},
+        {name: 'Feishu', value: 5, disabled: false}
       ],
       alertType: [],
       configOverride: null,
@@ -2267,6 +2281,7 @@ export default {
         k8sRestExposedType: values.k8sRestExposedType,
         restartSize: values.restartSize,
         alertEmail: values.alertEmail || null,
+        fsWebhook: values.fsWebhook || null,
         description: values.description,
         k8sNamespace: values.k8sNamespace || null,
         clusterId: values.clusterId || null,
@@ -2358,6 +2373,7 @@ export default {
         k8sRestExposedType: values.k8sRestExposedType,
         restartSize: values.restartSize,
         alertEmail: values.alertEmail,
+        fsWebhook: values.fsWebhook,
         description: values.description || null,
         k8sNamespace: values.k8sNamespace || null,
         clusterId: values.clusterId || null,

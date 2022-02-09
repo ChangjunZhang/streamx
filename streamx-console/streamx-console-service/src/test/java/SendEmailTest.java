@@ -153,7 +153,7 @@ public class SendEmailTest {
         htmlEmail.setHostName(this.senderEmail.getSmtpHost());
         htmlEmail.setAuthentication(this.senderEmail.getUserName(), this.senderEmail.getPassword());
         htmlEmail.setFrom(this.senderEmail.getFrom());
-        htmlEmail.setAuthentication(this.senderEmail.getUserName(),this.senderEmail.getPassword());
+        htmlEmail.setAuthentication(this.senderEmail.getUserName(), this.senderEmail.getPassword());
         if (this.senderEmail.isSsl()) {
             htmlEmail.setSSLOnConnect(true);
             htmlEmail.setSslSmtpPort(this.senderEmail.getSmtpPort().toString());

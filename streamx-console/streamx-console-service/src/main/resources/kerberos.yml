@@ -3,7 +3,7 @@ security:
     login:
       enable: true
       principal: bigdata@AIBEE.CN
-      krb5:
+      krb5: /etc/krb5.conf
       keytab: /tmp/bigdata.keytab
 java:
   security:

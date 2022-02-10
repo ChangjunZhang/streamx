@@ -19,13 +19,10 @@
 
 package com.streamxhub.streamx.console.core.service.impl;
 
-<<<<<<< HEAD
 import com.streamxhub.streamx.common.enums.ExecutionMode;
-=======
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
->>>>>>> ff425f36 (add 飞书报警)
 import com.streamxhub.streamx.common.util.DateUtils;
 import com.streamxhub.streamx.common.util.HadoopUtils;
 import com.streamxhub.streamx.common.util.Utils;

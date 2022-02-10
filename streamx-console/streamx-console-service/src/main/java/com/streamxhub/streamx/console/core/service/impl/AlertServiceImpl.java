@@ -19,7 +19,13 @@
 
 package com.streamxhub.streamx.console.core.service.impl;
 
+<<<<<<< HEAD
 import com.streamxhub.streamx.common.enums.ExecutionMode;
+=======
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+>>>>>>> ff425f36 (add 飞书报警)
 import com.streamxhub.streamx.common.util.DateUtils;
 import com.streamxhub.streamx.common.util.HadoopUtils;
 import com.streamxhub.streamx.common.util.Utils;
@@ -34,12 +40,20 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.HtmlEmail;
+import org.apache.http.HttpResponse;
+import org.apache.http.HttpStatus;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.net.URL;
 import java.util.Date;
@@ -121,6 +135,7 @@ public class AlertServiceImpl implements AlertService {
             String subject = String.format("StreamX Alert: %s, checkPoint is Failed", application.getJobName());
             String[] emails = application.getAlertEmail().split(",");
             sendEmail(mail, subject, emails);
+            sendFeishuMsg(application,emails);
         }
     }
 
@@ -185,6 +200,62 @@ public class AlertServiceImpl implements AlertService {
             template.setTotalRestart(application.getRestartSize());
         }
         return template;
+    }
+
+    private void  sendFeishuMsg(Application application, String... mails){//TODO 待完善
+        String errorMsg = "appId:"+application.getAppId()+",appName:"+application.getJobName()+" Failed";
+        Map<String,Object> header  = new HashMap<>();
+        header.put("Content-Type","application/json");
+        JsonMapper jsonMapper = JsonMapper.builder().build();
+        ObjectNode body = jsonMapper.createObjectNode();
+        body.put("msg_type","text");
+        ObjectNode content = jsonMapper.createObjectNode();
+        content.put("text",errorMsg);
+        body.set("content",content);
+        String feishuWebHook="https://open.feishu.cn/open-apis/bot/v2/hook/5c857264-e5b6-44ac-8845-0fcaadd4a529";
+        String result = doPost(feishuWebHook, body);
+        System.out.println(result);
+
+    }
+
+    /**
+     * 封装Http请求
+     * @param url
+     * @param json
+     * @return
+     */
+    private String doPost(String url, JsonNode json) {
+        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
+        HttpPost httpPost = new HttpPost(url);
+        //api_gateway_auth_token自定义header头，用于token验证使用
+        httpPost.addHeader("Content-Type", "application/json;charset=utf-8");
+        httpPost.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36");
+        try {
+            StringEntity se = new StringEntity(json.toString());
+            se.setContentEncoding("UTF-8");
+            //发送json数据需要设置contentType
+            se.setContentType("application/x-www-form-urlencoded");
+            //设置请求参数
+            httpPost.setEntity(se);
+            HttpResponse response = httpClient.execute(httpPost);
+            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
+                //返回json格式
+                String res = EntityUtils.toString(response.getEntity());
+                return res;
+            }
+            return String.valueOf(response.getStatusLine().getStatusCode());
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (httpClient != null){
+                try {
+                    httpClient.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return null;
     }
 
 }

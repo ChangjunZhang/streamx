@@ -17,8 +17,13 @@
  * limitations under the License.
  */
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.streamxhub.streamx.common.util.DateUtils;
 import com.streamxhub.streamx.common.util.HadoopUtils;
+import com.streamxhub.streamx.common.util.HttpClientUtils;
 import com.streamxhub.streamx.common.util.Utils;
 import com.streamxhub.streamx.console.core.entity.Application;
 import com.streamxhub.streamx.console.core.entity.SenderEmail;
@@ -33,6 +38,7 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.util.Date;
 import java.util.Enumeration;
@@ -87,7 +93,7 @@ public class SendEmailTest {
         application.setJobName("Test My Job");
         application.setAppId("1234567890");
         application.setAlertEmail("cjzhang@aibee.com");
-
+        application.setFsWebhook("https://open.feishu.cn/open-apis/bot/v2/hook/5c857264-e5b6-44ac-8845-0fcaadd4a529");
         application.setRestartCount(5);
         application.setRestartSize(100);
 
@@ -115,6 +121,8 @@ public class SendEmailTest {
 
                 String subject = String.format("StreamX Alert: %s %s", application.getJobName(), appState.name());
                 sendEmail(subject, html, application.getAlertEmail().split(","));
+                String[] fsWebhooks = application.getFsWebhook().split(",");
+                sendFsMsg(mail, subject, fsWebhooks);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -128,7 +136,7 @@ public class SendEmailTest {
         } else {
             duration = application.getEndTime().getTime() - application.getStartTime().getTime();
         }
-        duration = duration / 1000 / 60;
+        duration = duration / 1000;
         String format = "%s/proxy/%s/";
         String url = String.format(format, HadoopUtils.getRMWebAppURL(false), application.getAppId());
 
@@ -153,7 +161,7 @@ public class SendEmailTest {
         htmlEmail.setHostName(this.senderEmail.getSmtpHost());
         htmlEmail.setAuthentication(this.senderEmail.getUserName(), this.senderEmail.getPassword());
         htmlEmail.setFrom(this.senderEmail.getFrom());
-        htmlEmail.setAuthentication(this.senderEmail.getUserName(), this.senderEmail.getPassword());
+
         if (this.senderEmail.isSsl()) {
             htmlEmail.setSSLOnConnect(true);
             htmlEmail.setSslSmtpPort(this.senderEmail.getSmtpPort().toString());
@@ -164,6 +172,121 @@ public class SendEmailTest {
         htmlEmail.setHtmlMsg(html);
         htmlEmail.addTo(mails);
         htmlEmail.send();
+    }
+
+    private void sendFsMsg(MailTemplate mail, String subject,  String... fsWebhooks) throws UnsupportedEncodingException {
+        JsonNode body = getFsMdTemplate(mail, subject);
+        for (String fsWebHook : fsWebhooks) {
+            String result = HttpClientUtils.httpPostRequest(fsWebHook, body.toString());
+            System.out.println(result);
+        }
+    }
+
+    /**
+     * 参考：https://www.feishu.cn/hc/zh-CN/articles/360024984973
+     * https://open.feishu.cn/tool/cardbuilder?from=custom_bot_doc
+     * @param mail 模板
+     * @param subject 主题
+     * @return 飞书模板
+     */
+    private JsonNode getFsMdTemplate(MailTemplate mail, String subject){
+        JsonMapper jsonMapper = JsonMapper.builder().build();
+
+        String title = mail.getTitle();
+        String jobName = mail.getJobName();
+        String status = mail.getStatus();
+        int type = mail.getType();
+        String startTime = mail.getStartTime();
+        String endTime = mail.getEndTime();
+        String duration = mail.getDuration();
+        String link = mail.getLink();
+        String cpFailureRateInterval = mail.getCpFailureRateInterval();
+        int cpMaxFailureInterval = mail.getCpMaxFailureInterval();
+        boolean restart = mail.getRestart();
+        int restartIndex = mail.getRestartIndex();
+        int totalRestart = mail.getTotalRestart();
+
+        //header 封装：包含template 与 title
+        ObjectNode header = jsonMapper.createObjectNode();
+        header.put("template", "red");
+        ObjectNode titleNode = jsonMapper.createObjectNode();
+        titleNode.put("content", String.format("[Flink任务告警] %s", title));
+        titleNode.put("tag", "plain_text");
+        header.set("title", titleNode);
+
+        //config 封装
+        ObjectNode config = jsonMapper.createObjectNode();
+        config.put("wide_screen_mode", true);
+
+        //elements 封装：主要内容都在该部分
+        ArrayNode elements = jsonMapper.createArrayNode();
+
+        JsonNode jobNameNode = getLineTextModule("任务名称", jobName);
+        JsonNode jobStatusNode = getLineTextModule("任务状态", status);
+        JsonNode startTimeNode = getLineTextModule("启动时间", startTime);
+        JsonNode endTimeNode = getLineTextModule("结束时间", endTime);
+        JsonNode durationNode = getLineTextModule("运行时长", duration);
+        JsonNode linkNode = getLineTextModule("查看日志", link);
+        JsonNode restartNode = getLineTextModule("重启次数", String.format("%s/%s", restartIndex, totalRestart));
+
+        // 逐行添加
+        elements.add(jobNameNode);
+        elements.add(jobStatusNode);
+        elements.add(startTimeNode);
+        elements.add(endTimeNode);
+        elements.add(durationNode);
+        elements.add(linkNode);
+        elements.add(restartNode);
+
+        //封装信息脚
+        ObjectNode hrNode = jsonMapper.createObjectNode();
+        hrNode.put("tag", "hr");
+        ObjectNode noteNode = jsonMapper.createObjectNode();
+        ArrayNode noteElements = jsonMapper.createArrayNode();
+        ObjectNode noteContent = jsonMapper.createObjectNode();
+        noteContent.put("content", "[来自StreamX](http://172.16.244.42:10000/)");
+        noteContent.put("tag", "lark_md");
+        noteElements.add(noteContent);
+        noteNode.set("elements", noteElements);
+        noteNode.put("tag", "note");
+        // 最后增加分割线与note
+        elements.add(hrNode);
+        elements.add(noteNode);
+
+        //card 封装：包括config, elements, header 三个部分
+        ObjectNode card = jsonMapper.createObjectNode();
+        card.set("config", config);
+        card.set("elements", elements);
+        card.set("header", header);
+
+        //消息体：包含msg_type与card
+        ObjectNode body = jsonMapper.createObjectNode();
+        body.put("msg_type", "interactive");
+        body.set("card", card);
+        System.out.println(body);
+        return body;
+    }
+
+    /**
+     * 生成单行的模板
+     * @param title 标题
+     * @param content 内容
+     * @return 一行
+     */
+    private JsonNode getLineTextModule(String title, String content){
+        JsonMapper jsonMapper = JsonMapper.builder().build();
+        ObjectNode line = jsonMapper.createObjectNode();
+        line.put("tag", "div");
+        ArrayNode line1Fields = jsonMapper.createArrayNode();
+        ObjectNode jobNameNode = jsonMapper.createObjectNode();
+        jobNameNode.put("is_short", true);
+        ObjectNode jobNameText = jsonMapper.createObjectNode();
+        jobNameText.put("content", String.format("**%s:** %s", title, content));
+        jobNameText.put("tag", "lark_md");
+        jobNameNode.set("text", jobNameText);
+        line1Fields.add(jobNameNode);
+        line.set("fields", line1Fields);
+        return line;
     }
 
 }

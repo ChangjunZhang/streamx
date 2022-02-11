@@ -19,12 +19,14 @@
 
 package com.streamxhub.streamx.console.core.service.impl;
 
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.streamxhub.streamx.common.enums.ExecutionMode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.streamxhub.streamx.common.util.DateUtils;
 import com.streamxhub.streamx.common.util.HadoopUtils;
+import com.streamxhub.streamx.common.util.HttpClientUtils;
 import com.streamxhub.streamx.common.util.Utils;
 import com.streamxhub.streamx.console.core.entity.Application;
 import com.streamxhub.streamx.console.core.entity.SenderEmail;
@@ -37,27 +39,21 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.mail.HtmlEmail;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClientBuilder;
-import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.StringWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URL;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
@@ -74,6 +70,13 @@ public class AlertServiceImpl implements AlertService {
 
     private SenderEmail senderEmail;
 
+    /**
+     * 存储每个任务的上次告警时间，避免重复报警
+     */
+    private static final Map<Long, Long> LAST_ALERT_TIME_MAP = new ConcurrentHashMap<>(0);
+
+    //默认告警间隔，5min
+    private static final Long ALERT_INTERVAL = 1000L * 60 * 5;
     @PostConstruct
     public void initConfig() throws Exception {
         Configuration configuration = new Configuration(Configuration.VERSION_2_3_28);
@@ -103,38 +106,62 @@ public class AlertServiceImpl implements AlertService {
 
     @Override
     public void alert(Application application, FlinkAppState appState) {
-        if (this.senderEmail == null) {
-            this.senderEmail = settingService.getSenderEmail();
-        }
-        if (this.senderEmail != null && Utils.notEmpty(application.getAlertEmail())) {
-            MailTemplate mail = getMailTemplate(application);
-            mail.setType(1);
-            mail.setTitle(String.format("Notify: %s %s", application.getJobName(), appState.name()));
-            mail.setStatus(appState.name());
+        long currentTimeMillis = System.currentTimeMillis();
+        Long lastAlertTime = LAST_ALERT_TIME_MAP.getOrDefault(application.getId(), currentTimeMillis);
+        long alertTimeDiff = currentTimeMillis - lastAlertTime;
+        if (alertTimeDiff == 0 || alertTimeDiff >= ALERT_INTERVAL) {
+            if (this.senderEmail == null) {
+                this.senderEmail = settingService.getSenderEmail();
+            }
+            if (this.senderEmail != null && (Utils.notEmpty(application.getAlertEmail()) || Utils.notEmpty(application.getFsWebhook()))) {
+                MailTemplate mail = getMailTemplate(application);
+                mail.setType(1);
+                mail.setTitle(String.format("Notify: %s %s", application.getJobName(), appState.name()));
+                mail.setStatus(appState.name());
 
-            String subject = String.format("StreamX Alert: %s %s", application.getJobName(), appState.name());
-            String[] emails = application.getAlertEmail().split(",");
-            sendEmail(mail, subject, emails);
+                String subject = String.format("StreamX Alert: %s %s", application.getJobName(), appState.name());
+                String[] emails = application.getAlertEmail().split(",");
+                String[] fsWebhooks = application.getFsWebhook().split(",");
+                sendEmail(mail, subject, emails);
+                sendFsMsg(mail, subject, fsWebhooks);
+                if (application.getState() == FlinkAppState.CANCELED.getValue() || application.getState() == FlinkAppState.FAILED.getValue()  || application.getState() == FlinkAppState.LOST.getValue()) {
+                    LAST_ALERT_TIME_MAP.remove(application.getId());
+                } else {
+                    LAST_ALERT_TIME_MAP.put(application.getId(), currentTimeMillis);
+                }
+            }
         }
+
     }
 
     @Override
     public void alert(Application application, CheckPointStatus checkPointStatus) {
-        if (this.senderEmail == null) {
-            this.senderEmail = settingService.getSenderEmail();
-        }
-        if (this.senderEmail != null && Utils.notEmpty(application.getAlertEmail())) {
-            MailTemplate mail = getMailTemplate(application);
-            mail.setType(2);
-            mail.setCpFailureRateInterval(DateUtils.toRichTimeDuration(application.getCpFailureRateInterval()));
-            mail.setCpMaxFailureInterval(application.getCpMaxFailureInterval());
-            mail.setTitle(String.format("Notify: %s checkpoint FAILED", application.getJobName()));
+        long currentTimeMillis = System.currentTimeMillis();
+        Long lastAlertTime = LAST_ALERT_TIME_MAP.getOrDefault(application.getId(), currentTimeMillis);
+        long alertTimeDiff = currentTimeMillis - lastAlertTime;
+        if (alertTimeDiff == 0 || alertTimeDiff >= ALERT_INTERVAL) {
+            if (this.senderEmail == null) {
+                this.senderEmail = settingService.getSenderEmail();
+            }
+            if (this.senderEmail != null && (Utils.notEmpty(application.getAlertEmail()) || Utils.notEmpty(application.getFsWebhook()))) {
+                MailTemplate mail = getMailTemplate(application);
+                mail.setType(2);
+                mail.setCpFailureRateInterval(DateUtils.toRichTimeDuration(application.getCpFailureRateInterval()));
+                mail.setCpMaxFailureInterval(application.getCpMaxFailureInterval());
+                mail.setTitle(String.format("Notify: %s checkpoint FAILED", application.getJobName()));
 
-            String subject = String.format("StreamX Alert: %s, checkPoint is Failed", application.getJobName());
-            String[] emails = application.getAlertEmail().split(",");
-            String[] fsWebhooks = application.getFsWebhook().split(",");
-            sendEmail(mail, subject, emails);
-            sendFsMsg(application, fsWebhooks);
+                String subject = String.format("StreamX Alert: %s, checkPoint is Failed", application.getJobName());
+                String[] emails = application.getAlertEmail().split(",");
+                String[] fsWebhooks = application.getFsWebhook().split(",");
+                sendEmail(mail, subject, emails);
+                sendFsMsg(mail, subject, fsWebhooks);
+                if (application.getState() == FlinkAppState.CANCELED.getValue() || application.getState() == FlinkAppState.FAILED.getValue()  || application.getState() == FlinkAppState.LOST.getValue()) {
+                    LAST_ALERT_TIME_MAP.remove(application.getId());
+                } else {
+                    LAST_ALERT_TIME_MAP.put(application.getId(), currentTimeMillis);
+                }
+
+            }
         }
     }
 
@@ -176,7 +203,7 @@ public class AlertServiceImpl implements AlertService {
         } else {
             duration = application.getEndTime().getTime() - application.getStartTime().getTime();
         }
-        duration = duration / 1000 / 60;
+        duration = duration / 1000;
 
         // TODO: modify url for both k8s and yarn execute mode, the k8s mode is different from yarn, when the flink job failed ,
         //  the k8s pod is missing , so we should look for  a more reasonable url for k8s
@@ -201,57 +228,127 @@ public class AlertServiceImpl implements AlertService {
         return template;
     }
 
-    private void sendFsMsg(Application application, String... fsWebhooks){
-        String errorMsg = "appId:" + application.getAppId() + ",appName:" + application.getJobName() + " Failed";
-        JsonMapper jsonMapper = JsonMapper.builder().build();
-        ObjectNode body = jsonMapper.createObjectNode();
-        body.put("msg_type", "text");
-        ObjectNode content = jsonMapper.createObjectNode();
-        content.put("text", errorMsg);
-        body.set("content", content);
+    /**
+     * 发送飞书告警
+     * @param mail 模板
+     * @param subject 主题
+     * @param fsWebhooks webhooks
+     */
+    private void sendFsMsg(MailTemplate mail, String subject,  String... fsWebhooks) {
+        JsonNode body = getFsMdTemplate(mail, subject);
         for (String fsWebHook : fsWebhooks) {
-            String result = doPost(fsWebHook, body);
+            String result = null;
+            try {
+                result = HttpClientUtils.httpPostRequest(fsWebHook, body.toString());
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
             System.out.println(result);
         }
     }
 
     /**
-     * 封装Http请求
-     * @param url url
-     * @param json json
-     * @return 请求返回结果
+     * 参考：https://www.feishu.cn/hc/zh-CN/articles/360024984973
+     * https://open.feishu.cn/tool/cardbuilder?from=custom_bot_doc
+     * @param mail 模板
+     * @param subject 主题
+     * @return 飞书模板
      */
-    private String doPost(String url, JsonNode json) {
-        CloseableHttpClient httpClient = HttpClientBuilder.create().build();
-        HttpPost httpPost = new HttpPost(url);
-        //api_gateway_auth_token自定义header头，用于token验证使用
-        httpPost.addHeader("Content-Type", "application/json;charset=utf-8");
-        httpPost.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.81 Safari/537.36");
-        try {
-            StringEntity se = new StringEntity(json.toString());
-            se.setContentEncoding("UTF-8");
-            //发送json数据需要设置contentType
-            se.setContentType("application/x-www-form-urlencoded");
-            //设置请求参数
-            httpPost.setEntity(se);
-            HttpResponse response = httpClient.execute(httpPost);
-            if (response.getStatusLine().getStatusCode() == HttpStatus.SC_OK) {
-                //返回json格式
-                return EntityUtils.toString(response.getEntity());
-            }
-            return String.valueOf(response.getStatusLine().getStatusCode());
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            if (httpClient != null){
-                try {
-                    httpClient.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
+    private JsonNode getFsMdTemplate(MailTemplate mail, String subject){
+        JsonMapper jsonMapper = JsonMapper.builder().build();
+
+        String title = mail.getTitle();
+        String jobName = mail.getJobName();
+        String status = mail.getStatus();
+        String startTime = mail.getStartTime();
+        String endTime = mail.getEndTime();
+        String duration = mail.getDuration();
+        String link = mail.getLink();
+
+        //header 封装：包含template 与 title
+        ObjectNode header = jsonMapper.createObjectNode();
+        header.put("template", "red");
+        ObjectNode titleNode = jsonMapper.createObjectNode();
+        titleNode.put("content", String.format("[Flink任务告警] %s", title));
+        titleNode.put("tag", "plain_text");
+        header.set("title", titleNode);
+
+        //config 封装
+        ObjectNode config = jsonMapper.createObjectNode();
+        config.put("wide_screen_mode", true);
+
+        //elements 封装：主要内容都在该部分
+        ArrayNode elements = jsonMapper.createArrayNode();
+        JsonNode jobNameNode = getLineTextModule("任务名称", jobName);
+        JsonNode jobStatusNode = getLineTextModule("任务状态", status);
+        JsonNode startTimeNode = getLineTextModule("启动时间", startTime);
+        JsonNode endTimeNode = getLineTextModule("结束时间", endTime);
+        JsonNode durationNode = getLineTextModule("运行时长", duration);
+        JsonNode linkNode = getLineTextModule("查看日志", link);
+
+        // 逐行添加
+        elements.add(jobNameNode);
+        elements.add(jobStatusNode);
+        elements.add(startTimeNode);
+        elements.add(endTimeNode);
+        elements.add(durationNode);
+        elements.add(linkNode);
+        if (mail.getRestart()) {
+            int restartIndex = mail.getRestartIndex();
+            int totalRestart = mail.getTotalRestart();
+            JsonNode restartNode = getLineTextModule("重启次数", String.format("%s/%s", restartIndex, totalRestart));
+            elements.add(restartNode);
         }
-        return null;
+
+        //封装信息脚
+        ObjectNode hrNode = jsonMapper.createObjectNode();
+        hrNode.put("tag", "hr");
+        ObjectNode noteNode = jsonMapper.createObjectNode();
+        ArrayNode noteElements = jsonMapper.createArrayNode();
+        ObjectNode noteContent = jsonMapper.createObjectNode();
+        noteContent.put("content", "[来自StreamX](http://172.16.244.42:10000/)");
+        noteContent.put("tag", "lark_md");
+        noteElements.add(noteContent);
+        noteNode.set("elements", noteElements);
+        noteNode.put("tag", "note");
+        // 最后增加分割线与note
+        elements.add(hrNode);
+        elements.add(noteNode);
+
+        //card 封装：包括config, elements, header 三个部分
+        ObjectNode card = jsonMapper.createObjectNode();
+        card.set("config", config);
+        card.set("elements", elements);
+        card.set("header", header);
+
+        //消息体：包含msg_type与card
+        ObjectNode body = jsonMapper.createObjectNode();
+        body.put("msg_type", "interactive");
+        body.set("card", card);
+        System.out.println(body);
+        return body;
+    }
+
+    /**
+     * 生成单行的模板
+     * @param title 标题
+     * @param content 内容
+     * @return 一行
+     */
+    private JsonNode getLineTextModule(String title, String content){
+        JsonMapper jsonMapper = JsonMapper.builder().build();
+        ObjectNode line = jsonMapper.createObjectNode();
+        line.put("tag", "div");
+        ArrayNode line1Fields = jsonMapper.createArrayNode();
+        ObjectNode jobNameNode = jsonMapper.createObjectNode();
+        jobNameNode.put("is_short", true);
+        ObjectNode jobNameText = jsonMapper.createObjectNode();
+        jobNameText.put("content", String.format("**%s:** %s", title, content));
+        jobNameText.put("tag", "lark_md");
+        jobNameNode.set("text", jobNameText);
+        line1Fields.add(jobNameNode);
+        line.set("fields", line1Fields);
+        return line;
     }
 
 }

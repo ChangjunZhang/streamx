@@ -462,6 +462,9 @@ public class FlinkTrackingTask {
                 break;
             case RESTARTING:
                 log.info("flinkTrackingTask getFromFlinkRestApi, job state {},add to starting", currentState.name());
+                application.setState(FlinkAppState.RESTARTING.getValue());
+                persistent(application);
+                alertService.alert(application, FlinkAppState.RESTARTING);
                 STARTING_CACHE.put(application.getId(), DEFAULT_FLAG_BYTE);
                 break;
             default:

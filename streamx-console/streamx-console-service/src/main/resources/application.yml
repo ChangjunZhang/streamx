@@ -1,5 +1,5 @@
 server:
-  port: 10000
+  port: 30000
   undertow:
     buffer-size: 1024
     direct-buffers: true
@@ -9,7 +9,7 @@ server:
 
 logging:
   level:
-    root: debug
+    root: info
 
 spring:
   application.name: streamx
@@ -24,7 +24,7 @@ spring:
   datasource:
     dynamic:
       # 是否开启 SQL日志输出，生产环境建议关闭，有性能损耗
-      p6spy: false
+      p6spy: true
       hikari:
         connection-timeout: 30000
         max-lifetime: 1800000

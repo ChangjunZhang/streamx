@@ -1043,7 +1043,7 @@
       <!--告警方式-->
       <template>
         <a-form-item
-          v-if="1===1"
+          v-if="1===2"
           label="Fault Alert Type"
           :label-col="{lg: {span: 5}, sm: {span: 7}}"
           :wrapper-col="{lg: {span: 16}, sm: {span: 17} }">
@@ -1079,9 +1079,7 @@
             <svg-icon name="mail" slot="prefix"/>
           </a-input>
         </a-form-item>
-
         <a-form-item
-          v-if="alertType.indexOf(5)>-1"
           label="Feishu WebHook"
           :label-col="{lg: {span: 5}, sm: {span: 7}}"
           :wrapper-col="{lg: {span: 16}, sm: {span: 17} }">
@@ -1092,6 +1090,7 @@
             v-decorator="[ 'fsWebhook' , {rules: [{ required: true, message: 'FeiShu WebHook is required' }]}]">
           </a-input>
         </a-form-item>
+
         <a-form-item
           v-if="alertType.indexOf(2)>-1"
           label="SMS"

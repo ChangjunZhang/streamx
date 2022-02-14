@@ -371,6 +371,17 @@
           <svg-icon name="mail" slot="prefix"/>
         </a-input>
       </a-form-item>
+      <a-form-item
+        label="FeiShu WebHook List"
+        :label-col="{lg: {span: 5}, sm: {span: 7}}"
+        :wrapper-col="{lg: {span: 16}, sm: {span: 17} }">
+        <a-input
+          type="text"
+          placeholder="Please enter webhook,separate multiple webhooks with comma(,)"
+          allowClear
+          v-decorator="[ 'fsWebhook']">
+        </a-input>
+      </a-form-item>
 
       <a-form-item
         class="conf-item"
@@ -1017,6 +1028,7 @@ export default {
               dynamicOptions: values.dynamicOptions,
               restartSize: values.restartSize,
               alertEmail: values.alertEmail || null,
+              fsWebhook: values.fsWebhook || null,
               description: values.description,
               k8sRestExposedType: values.k8sRestExposedType,
               k8sNamespace: values.k8sNamespace || null,
@@ -1105,6 +1117,7 @@ export default {
           'yarnQueue': this.app.yarnQueue,
           'restartSize': this.app.restartSize,
           'alertEmail': this.app.alertEmail,
+          'fsWebhook': this.app.fsWebhook,
           'cpMaxFailureInterval': this.app.cpMaxFailureInterval,
           'cpFailureRateInterval': this.app.cpFailureRateInterval,
           'cpFailureAction': this.app.cpFailureAction,

@@ -79,39 +79,35 @@ public class FlinkMemorySize implements java.io.Serializable, Comparable<FlinkMe
     // ------------------------------------------------------------------------
 
     /**
-     *
-     * @return Gets the memory size in bytes.
+     * Gets the memory size in bytes.
      */
     public long getBytes() {
         return bytes;
     }
 
     /**
-     *
-     * @return Gets the memory size in Kibibytes (= 1024 bytes).
+     * Gets the memory size in Kibibytes (= 1024 bytes).
      */
     public long getKibiBytes() {
         return bytes >> 10;
     }
 
     /**
-     *
-     * @return Gets the memory size in Mebibytes (= 1024 Kibibytes).
+     * Gets the memory size in Mebibytes (= 1024 Kibibytes).
      */
     public int getMebiBytes() {
         return (int) (bytes >> 20);
     }
 
     /**
-     *
-     * @return Gets the memory size in Gibibytes (= 1024 Mebibytes).
+     * Gets the memory size in Gibibytes (= 1024 Mebibytes).
      */
     public long getGibiBytes() {
         return bytes >> 30;
     }
 
     /**
-     * @return Gets the memory size in Tebibytes (= 1024 Gibibytes).
+     * Gets the memory size in Tebibytes (= 1024 Gibibytes).
      */
     public long getTebiBytes() {
         return bytes >> 40;

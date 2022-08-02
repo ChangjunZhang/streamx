@@ -58,14 +58,20 @@ spec:
               protocol: TCP
           securityContext:
             privileged: false
-{{/*          command: ["bash","bin/startup.sh"]*/}}
-          command: ["bash","-c","while true; do sleep 3600; done"]
+          command: ["bash","bin/startup.sh"]
+{{/*          command: ["bash","-c","while true; do sleep 3600; done"]*/}}
           volumeMounts:
             - name: volume-docker
               mountPath: /var/run/docker.sock
               readOnly: true
             - name: streamx-default-config-volume
               mountPath: /streamx/conf
+            - name: hadoop-config-volume
+              mountPath: /hadoop/etc/hadoop/
+            - name: hadoop-kerberos-volume
+              mountPath: /etc
+{{/*            - name: hadoop-kerberos-keytab*/}}
+{{/*              mountPath: /tmp*/}}
       volumes:
         - name: streamx-default-config-volume
           configMap:
@@ -81,9 +87,31 @@ spec:
                 path: spy.properties
               - key: ValidationMessages.properties
                 path: ValidationMessages.properties
+        - name: hadoop-config-volume
+          configMap:
+            name: hadoop-config
+            items:
+              - key: core-site.xml
+                path: core-site.xml
+              - key: hdfs-site.xml
+                path: hdfs-site.xml
+              - key: hive-site.xml
+                path: hive-site.xml
+              - key: yarn-site.xml
+                path: yarn-site.xml
+        - name: hadoop-kerberos-volume
+          configMap:
+            name: kerberos-config
+            items:
+              - key: krb5.conf
+                path: krb5.conf
+{{/*        - name: hadoop-kerberos-keytab*/}}
+{{/*          secret:*/}}
+{{/*            secretName: bigdata.keytab*/}}
         - name: volume-docker
           hostPath:
             path: /var/run/docker.sock
             type: ""
+
 
 

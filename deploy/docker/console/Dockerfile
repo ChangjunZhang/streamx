@@ -16,11 +16,14 @@
 #  limitations under the License.
 ###############################################################################
 FROM alpine:3.16 as deps-stage
-COPY . /
+COPY ./streamx-console/streamx-console-service/target/streamx-console-service-*.tar.gz /
 WORKDIR /
-RUN tar zxvf streamx-console/streamx-console-service/target/streamx-console-service-*.tar.gz \
+RUN tar zxvf streamx-console-service-*.tar.gz \
+&& rm streamx-console-service-*.tar.gz \
 && mv streamx-console-service-* streamx
-
+COPY ./deploy/k8s-conf/idc-dev-config streamx/plugins
+COPY ./deploy/streamx/conf/hadoop-secret/bigdata.keytab streamx/conf
+RUN mv streamx/plugins/idc-dev-config  streamx/plugins/config
 
 FROM docker:dind
 WORKDIR /streamx
@@ -33,7 +36,12 @@ ENV NPM_VERSION=7.11.2
 RUN sed -i -e 's/eval $NOHUP/eval/' bin/streamx.sh \
     && sed -i -e 's/StreamXConsole \\/StreamXConsole/' bin/streamx.sh \
     && sed -i -e 's/>> "$APP_OUT" 2>&1 "&"//' bin/streamx.sh \
-    && sed -i -e 's/localhost/'$DB'/' conf/application.yml
+    && sed -i -e 's/localhost/'$DB'/' conf/application.yml \
+
+RUN wget -q https://archive.apache.org/dist/hadoop/common/hadoop-2.7.7/hadoop-2.7.7.tar.gz \
+    && tar -zxf hadoop-2.7.7.tar.gz -C / \
+    && mv /hadoop-2.7.7 /hadoop \
+    && rm hadoop-2.7.7.tar.gz
 
 RUN apk add openjdk8 \
     && apk add maven \
@@ -41,11 +49,16 @@ RUN apk add openjdk8 \
     && apk add vim \
     && apk add bash
 
+
 ENV JAVA_HOME=/usr/lib/jvm/java-1.8-openjdk
 ENV MAVEN_HOME=/usr/share/java/maven-3
-ENV PATH $JAVA_HOME/bin:$PATH
-ENV PATH $MAVEN_HOME/bin:$PATH
-
+ENV HADOOP_HOME /hadoop
+ENV HADOOP_CONF_DIR $HADOOP_HOME/etc/hadoop
+ENV HADOOP_COMMON_LIB_NATIVE_DIR ${HADOOP_HOME}/lib/native
+ENV YARN_CONF_DIR  $HADOOP_HOME/etc/hadoop
+ENV HADOOP_OPTS "-Djava.library.path=$HADOOP_HOME/lib"
+ENV HADOOP_CLASSPATH $HADOOP_HOME/lib/*:$HADOOP_HOME/share/hadoop/yarn/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/mapreduce/*:$HADOOP_HOME/share/hadoop/hdfs/*:$HADOOP_HOME/share/hadoop/tools/*:$HADOOP_HOME/share/hadoop/httpfs/*:$HADOOP_HOME/share/hadoop/kms/*:$HADOOP_HOME/share/hadoop/common/lib/*
+ENV PATH "${PATH}:${HADOOP_HOME}/bin:$JAVA_HOME/bin:$MAVEN_HOME/bin"
 
 
 RUN wget "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.tar.gz" \

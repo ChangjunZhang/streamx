@@ -1,10 +1,10 @@
 security:
   kerberos:
     login:
-      enable: false
-      principal:
-      krb5:
-      keytab:
+      enable: true
+      principal: bigdata@AIBEE.CN
+      krb5: /etc/krb5.conf
+      keytab: /streamx/conf/bigdata.keytab
 java:
   security:
     krb5:

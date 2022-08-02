@@ -58,4 +58,57 @@ data:
 {{- if index (.Values.streamxDefaultConfiguration) "ValidationMessages.properties" }}
     {{- index (.Values.streamxDefaultConfiguration) "ValidationMessages.properties" | nindent 4 -}}
 {{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: hadoop-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "streamx.labels" . | nindent 4 }}
+data:
+  core-site.xml: |+
+{{- if .Values.streamxDefaultConfiguration.append }}
+    {{- $.Files.Get "conf/hadoop-config/core-site.xml"  | nindent 4 -}}
+{{- end }}
+{{- if index (.Values.streamxDefaultConfiguration) "core-site.xml" }}
+    {{- index (.Values.streamxDefaultConfiguration) "core-site.xml" | nindent 4 -}}
+{{- end }}
+  hdfs-site.xml: |+
+{{- if .Values.streamxDefaultConfiguration.append }}
+    {{- $.Files.Get "conf/hadoop-config/hdfs-site.xml"  | nindent 4 -}}
+{{- end }}
+{{- if index (.Values.streamxDefaultConfiguration) "hdfs-site.xml" }}
+    {{- index (.Values.streamxDefaultConfiguration) "hdfs-site.xml" | nindent 4 -}}
+{{- end }}
+  hive-site.xml: |+
+{{- if .Values.streamxDefaultConfiguration.append }}
+    {{- $.Files.Get "conf/hadoop-config/hive-site.xml"  | nindent 4 -}}
+{{- end }}
+{{- if index (.Values.streamxDefaultConfiguration) "hive-site.xml" }}
+    {{- index (.Values.streamxDefaultConfiguration) "hive-site.xml" | nindent 4 -}}
+{{- end }}
+  yarn-site.xml: |+
+{{- if .Values.streamxDefaultConfiguration.append }}
+    {{- $.Files.Get "conf/hadoop-config/yarn-site.xml"  | nindent 4 -}}
+{{- end }}
+{{- if index (.Values.streamxDefaultConfiguration) "yarn-site.xml" }}
+    {{- index (.Values.streamxDefaultConfiguration) "yarn-site.xml" | nindent 4 -}}
+{{- end }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kerberos-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+  {{- include "streamx.labels" . | nindent 4 }}
+data:
+  krb5.conf: |+
+{{- if .Values.streamxDefaultConfiguration.append }}
+    {{- $.Files.Get "conf/hadoop-secret/krb5.conf"  | nindent 4 -}}
+{{- end }}
+{{- if index (.Values.streamxDefaultConfiguration) "krb5.conf" }}
+    {{- index (.Values.streamxDefaultConfiguration) "krb5.conf" | nindent 4 -}}
+{{- end }}
 {{- end }}

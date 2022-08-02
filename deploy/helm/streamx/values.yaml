@@ -19,10 +19,15 @@
 # watchNamespaces: ["streamx"]
 
 image:
-  repository: "streamxhub/streamx"
+  repository: "registry.aibee.cn/data-exchange/streamx"
   pullPolicy: "IfNotPresent"
   tag: "1.2.4"
-  pullSecret: ""
+  pullSecret: "registry.aibee.cn"
+  userName: "ZG9ja2VycHVsbAo="
+  password: "UGhhOUVHaGkjMjMzCg=="
+
+secret:
+  keytab: "bigdata.keytab"
 
 rbac:
   create: true
@@ -51,7 +56,7 @@ spec:
 
 ingress:
   enabled: true
-  host: "streamxhub.org"
+  host: "flink.data-exchange-dev.aibee.cn"
   path: "/streamx"
   annotations: {}
 
@@ -71,6 +76,7 @@ streamxDefaultConfiguration:
 
 streamxServiceAccount:
   create: true
+
   annotations: {}
   name: "streamx"
 

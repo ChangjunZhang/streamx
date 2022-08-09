@@ -1,11 +1,11 @@
 security:
   kerberos:
     login:
-      enable: false
+      enable: true
       debug: false
-      principal:
-      krb5:
-      keytab:
+      principal: bigdata@AIBEE.CN
+      krb5: /etc/krb5.conf
+      keytab: /Users/aibee/tmp/bigdata.keytab
 java:
   security:
     krb5:

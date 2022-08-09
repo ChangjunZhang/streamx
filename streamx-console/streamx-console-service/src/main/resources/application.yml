@@ -1,5 +1,5 @@
 server:
-  port: 10000
+  port: 20000
   undertow:
     buffer-size: 1024
     direct-buffers: true
@@ -40,10 +40,10 @@ spring:
       datasource:
         # 数据源-1，名称为 primary
         primary:
-          username: root
-          password: 123456
+          username: openfaasdb_user
+          password: 5apj5R7s$y75S8z3
           driver-class-name: com.mysql.cj.jdbc.Driver
-          url: jdbc:mysql://localhost:3306/streamx?useSSL=false&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8
+          url: jdbc:mysql://data-db01.aibee.cn:3306/streamx_local?useSSL=false&useUnicode=true&characterEncoding=UTF-8&allowPublicKeyRetrieval=false&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=GMT%2B8
   aop.proxy-target-class: true
   messages.encoding: utf-8
   jackson:
@@ -81,11 +81,11 @@ streamx:
     http-auth: sample
 
   # HADOOP_USER_NAME
-  hadoop-user-name: hdfs
+  hadoop-user-name: bigdata
   # 本地的工作空间,用于存放项目源码,构建的目录等.
   workspace:
-    local: /opt/streamx_workspace
-    remote: hdfs://hdfscluster/streamx   # support hdfs:///streamx/ 、 /streamx 、hdfs://host:ip/streamx/
+    local: /Users/aibee/tmp/streamx_workspace
+    remote: hdfs:///tmp/cjzhang/streamx_local    # support hdfs:///streamx/ 、 /streamx 、hdfs://host:ip/streamx/
 
   # remote docker register namespace for streamx
   docker:

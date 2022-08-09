@@ -21,7 +21,7 @@
 image:
   repository: "registry.aibee.cn/data-exchange/streamx"
   pullPolicy: "IfNotPresent"
-  tag: "1.2.4"
+  tag: "latest"
   pullSecret: "registry.aibee.cn"
   userName: "ZG9ja2VycHVsbAo="
   password: "UGhhOUVHaGkjMjMzCg=="

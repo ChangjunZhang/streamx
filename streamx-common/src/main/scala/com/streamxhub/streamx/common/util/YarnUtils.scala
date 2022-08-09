@@ -168,6 +168,7 @@ object YarnUtils extends Logger {
                       )
                       breakable(idUrlMap.foreach(x => {
                         //test yarn url
+                        logInfo(s"x.1=======${x._1};x.2=======${x._2}")
                         val activeUrl = httpTestYarnRMUrl(x._1, rpcTimeoutForChecks)
                         if (activeUrl != null) {
                           rmId = idUrlMap(activeUrl)
@@ -223,6 +224,7 @@ object YarnUtils extends Logger {
   }
 
   private[this] def httpTestYarnRMUrl(url: String, timeout: Int): String = {
+    logWarn(s"url=======${url};timeout=======${timeout}")
     val httpClient = HttpClients.createDefault();
     val context = HttpClientContext.create()
     val httpGet = new HttpGet(url)
@@ -232,7 +234,9 @@ object YarnUtils extends Logger {
       .setConnectTimeout(timeout)
       .build()
     httpGet.setConfig(requestConfig)
-    Try(httpClient.execute(httpGet, context)) match {
+    val result = httpClient.execute(httpGet, context)
+    logWarn(s"result=======${result}")
+    Try(result) match {
       case Success(_) => context.getTargetHost.toString
       case _ => null
     }

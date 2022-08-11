@@ -20,7 +20,9 @@ COPY . /
 WORKDIR /
 RUN tar zxvf streamx-console/streamx-console-service/target/streamx-console-service-*.tar.gz \
 && mv streamx-console-service-* streamx
-
+COPY ./deploy/k8s-conf/idc-dev-config streamx/plugins
+COPY ./deploy/helm/streamx/conf/hadoop-secret/bigdata.keytab streamx/conf
+RUN mv streamx/plugins/idc-dev-config  streamx/plugins/config
 
 FROM maven:3.8.5-jdk-8
 WORKDIR /streamx
@@ -31,7 +33,7 @@ ENV NPM_VERSION 7.11.2
 ARG DB=localhost
 ENV FLINK_VERSION 1.14.5
 ENV SCALA_VERSION scala_2.12
-
+ENV HADOOP_VERSION 2.7.7
 
 RUN sed -i -e 's/eval $NOHUP/eval/' bin/streamx.sh \
     && sed -i -e 's/StreamXConsole \\/StreamXConsole/' bin/streamx.sh \
@@ -43,15 +45,33 @@ RUN wget "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-linux-x64.t
     && rm "node-v$NODE_VERSION-linux-x64.tar.gz" \
     && ln -s /usr/local/bin/node /usr/local/bin/nodejs
 
-RUN wget "https://mirrors.cloud.tencent.com/apache/flink/flink-$FLINK_VERSION/flink-$FLINK_VERSION-bin-$SCALA_VERSION.tgz" \
-    && mkdir ./flink \
-    && tar zxvf "flink-$FLINK_VERSION-bin-$SCALA_VERSION.tgz" -C ./flink --strip-components=1 \
+RUN wget "https://dlcdn.apache.org/flink/flink-$FLINK_VERSION/flink-$FLINK_VERSION-bin-$SCALA_VERSION.tgz" \
+    && tar zxvf "flink-$FLINK_VERSION-bin-$SCALA_VERSION.tgz" -C /usr/local --strip-components=1 \
+    && ln -sf /usr/local/flink-$FLINK_VERSION /usr/local/flink \
     && rm "flink-$FLINK_VERSION-bin-$SCALA_VERSION.tgz"
+
+RUN wget "https://archive.apache.org/dist/hadoop/common/hadoop-$HADOOP_VERSION/hadoop-$HADOOP_VERSION.tar.gz" \
+    && tar -zxf hadoop-$HADOOP_VERSION.tar.gz -C /usr/local  --strip-components=1 \
+    && ln -sf /usr/local/hadoop-$HADOOP_VERSION /usr/local/hadoop \
+    && rm "hadoop-$HADOOP_VERSION.tar.gz"
 
 RUN echo Y|apt-get update \
     && echo Y|apt-get install iputils-ping \
     && echo Y|apt-get install vim \
     && echo Y|apt-get install net-tools
+
+ENV HADOOP_HOME=/usr/local/hadoop
+ENV HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+ENV HADOOP_OPTS="-Djava.library.path=$HADOOP_HOME/lib:$HADOOP_COMMON_LIB_NATIVE_DIR"
+# 配置文件目录
+ENV HADOOP_CONF_DIR=/usr/local/hadoop_conf
+# Flink相关的ENV
+ENV HADOOP_CLASSPATH=$HADOOP_CONF_DIR:$HADOOP_HOME/share/hadoop/common/lib/*:$HADOOP_HOME/share/hadoop/common/*:$HADOOP_HOME/share/hadoop/hdfs:$HADOOP_HOME/share/hadoop/hdfs/lib/*:$HADOOP_HOME/share/hadoop/hdfs/*:$HADOOP_HOME/share/hadoop/mapreduce/lib/*:$HADOOP_HOME/share/hadoop/mapreduce/*:$HADOOP_HOME/share/hadoop/yarn:$HADOOP_HOME/share/hadoop/yarn/lib/*:$HADOOP_HOME/share/hadoop/yarn/*
+ENV FLINK_HOME=/usr/local/flink
+ENV FLINK_CONF_DIR=$FLINK_HOME/conf
+# PATH
+ENV PATH=$PATH:$JAVA_HOME/bin:$JAVA_HOME/jre/bin:$FLINK_HOME/bin:$HADOOP_HOME/bin
+
 
 EXPOSE 10000
 ENTRYPOINT bash bin/startup.sh

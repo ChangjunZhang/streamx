@@ -56,10 +56,14 @@ public class AlertTemplate implements Serializable {
 
     private static AlertTemplate of(Application application) {
         long duration;
-        if (application.getEndTime() == null) {
+        if (application.getEndTime() == null && application.getStartTime() != null) {
             duration = System.currentTimeMillis() - application.getStartTime().getTime();
         } else {
-            duration = application.getEndTime().getTime() - application.getStartTime().getTime();
+            if (application.getEndTime() != null && application.getStartTime() != null){
+                duration = application.getEndTime().getTime() - application.getStartTime().getTime();
+            } else {
+                duration = 0;
+            }
         }
         duration = duration / 1000 / 60;
 

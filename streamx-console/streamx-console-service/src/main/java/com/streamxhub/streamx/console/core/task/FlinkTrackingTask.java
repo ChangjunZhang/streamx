@@ -178,12 +178,12 @@ public class FlinkTrackingTask {
      * <p> <strong>1) 工程刚启动或者管理端页面正常操作任务(启动|停止),该操作需要非常实时的返回状态,频率1秒一次,持续10秒种(10次)</strong></p>
      * <p> <strong>2) 正常的状态信息获取,5秒执行一次</strong></p>
      */
-    @Scheduled(fixedDelay = 1000)
+    @Scheduled(fixedDelay = 1000 * 5)
     public void execute() {
         // 正常5秒钟获取一次信息
-        long trackInterval = 1000L * 5;
+        long trackInterval = 1000L * 10;
         //10秒之内
-        long optionInterval = 1000L * 10;
+        long optionInterval = 1000L * 15;
 
         //1) 项目刚启动第一次执行,或者前端正在操作...(启动,停止)需要立即返回状态信息.
         if (lastTrackTime == null || !OPTIONING.isEmpty()) {

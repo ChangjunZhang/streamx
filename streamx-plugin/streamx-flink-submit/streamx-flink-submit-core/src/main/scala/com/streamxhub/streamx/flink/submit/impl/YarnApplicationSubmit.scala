@@ -81,6 +81,11 @@ object YarnApplicationSubmit extends YarnSubmitTrait {
           }
         case _ =>
       }
+      if(submitRequest.dynamicOption.containsKey(YarnConfigOptions.PROVIDED_LIB_DIRS.key())) {
+        for (str <- submitRequest.dynamicOption.get(YarnConfigOptions.PROVIDED_LIB_DIRS.key()).split(";")) {
+          array += str
+        }
+      }
       array.toList
     }
 

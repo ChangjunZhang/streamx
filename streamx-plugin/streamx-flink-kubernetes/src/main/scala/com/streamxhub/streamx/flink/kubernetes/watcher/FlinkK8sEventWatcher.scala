@@ -68,13 +68,18 @@ class FlinkK8sEventWatcher(implicit trackController: FlinkTrackController) exten
 
   override def doWatch(): Unit = {
     // watch k8s deployment events
-    k8sClient.apps().deployments()
-      .withLabel("type", "flink-native-kubernetes")
-      .watch(new CompatibleKubernetesWatcher[Deployment, CompKubernetesDeployment] {
-        override def eventReceived(action: Watcher.Action, event: Deployment): Unit = {
-          handleDeploymentEvent(action, event)
-        }
-      })
+    try {
+      k8sClient.apps().deployments()
+        .withLabel("type", "flink-native-kubernetes")
+        .watch(new CompatibleKubernetesWatcher[Deployment, CompKubernetesDeployment] {
+          override def eventReceived(action: Watcher.Action, event: Deployment): Unit = {
+            handleDeploymentEvent(action, event)
+          }
+        })
+    } catch {
+      case e: Throwable => logError(s"doWatch...error====${e}")
+    }
+
   }
 
   private def handleDeploymentEvent(action: Watcher.Action, event: Deployment): Unit = {
